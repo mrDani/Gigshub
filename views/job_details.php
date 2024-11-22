@@ -11,32 +11,32 @@ error_reporting(E_ALL);
 include '../includes/db.php';
 include '../includes/auth_functions.php';
 
-// Get the page ID from the query parameter
-$page_id = $_GET['page_id'] ?? null;
+// Get the job ID from the query parameter
+$job_id = $_GET['job_id'] ?? null;
 
-if (!$page_id) {
-    header('Location: home.php?error=Page not found');
+if (!$job_id) {
+    header('Location: home.php?error=Job not found');
     exit();
 }
 
-// Fetch the page details
-$stmt = $pdo->prepare('SELECT pages.*, categories.name AS category_name FROM pages 
-                       LEFT JOIN categories ON pages.category_id = categories.category_id 
-                       WHERE pages.page_id = :page_id');
-$stmt->execute([':page_id' => $page_id]);
-$page = $stmt->fetch(PDO::FETCH_ASSOC);
+// Fetch the job details
+$stmt = $pdo->prepare('SELECT jobs.*, categories.name AS category_name FROM jobs 
+                       LEFT JOIN categories ON jobs.category_id = categories.category_id 
+                       WHERE jobs.job_id = :job_id');
+$stmt->execute([':job_id' => $job_id]);
+$job = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$page) {
-    header('Location: home.php?error=Page not found');
+if (!$job) {
+    header('Location: home.php?error=Job not found');
     exit();
 }
 
-// Fetch comments
+// Fetch comments for the job
 $stmt = $pdo->prepare('SELECT comments.*, users.username FROM comments 
                        LEFT JOIN users ON comments.user_id = users.user_id 
-                       WHERE comments.page_id = :page_id 
+                       WHERE comments.job_id = :job_id 
                        ORDER BY comments.created_at DESC');
-$stmt->execute([':page_id' => $page_id]);
+$stmt->execute([':job_id' => $job_id]);
 $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Initialize error and success messages
@@ -51,42 +51,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Comment content is required.';
     } else {
         try {
-            $name = isLoggedIn() ? null : $_POST['name'];
+            $name = isLoggedIn() ? null : trim($_POST['name']);
             $user_id = isLoggedIn() ? $_SESSION['user']['user_id'] : null;
 
-            $stmt = $pdo->prepare('INSERT INTO comments (page_id, user_id, name, content) VALUES (:page_id, :user_id, :name, :content)');
+            $stmt = $pdo->prepare('INSERT INTO comments (job_id, user_id, name, content, created_at) 
+                                   VALUES (:job_id, :user_id, :name, :content, NOW())');
             $stmt->execute([
-                ':page_id' => $page_id,
+                ':job_id' => $job_id,
                 ':user_id' => $user_id,
                 ':name' => $name,
                 ':content' => $comment_content
             ]);
 
-            $message = 'Comment submitted successfully.';
+            // Refresh the page after successful submission
+            header("Location: job_details.php?job_id=$job_id");
+            exit();
         } catch (Exception $e) {
+            error_log('Error while inserting comment: ' . $e->getMessage());
             $error = 'An error occurred while submitting your comment.';
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($page['title']) ?></title>
+    <title><?= htmlspecialchars($job['title']) ?></title>
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 <body>
     <?php include '../includes/navbar.php'; ?>
     <div class="container mt-5">
-        <h1 class="mb-4"><?= htmlspecialchars($page['title']) ?></h1>
-        <p class="text-muted">Category: <?= htmlspecialchars($page['category_name'] ?? 'Uncategorized') ?></p>
-        <p class="text-muted">Created At: <?= htmlspecialchars($page['created_at']) ?></p>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0"><?= htmlspecialchars($job['title']) ?></h1>
+            <a href="apply_job.php?job_id=<?= $job_id ?>" class="btn btn-success">Apply for Job</a>
+        </div>
+        <p class="text-muted">Category: <?= htmlspecialchars($job['category_name'] ?? 'Uncategorized') ?></p>
+        <p class="text-muted">Created At: <?= htmlspecialchars($job['created_at']) ?></p>
+        <p class="text-muted">Location: <?= htmlspecialchars($job['location'] ?? 'N/A') ?></p>
+        <p class="text-muted">Salary: $<?= htmlspecialchars($job['salary'] ?? 'Negotiable') ?></p>
         <hr>
-        <div><?= htmlspecialchars_decode($page['content']) ?></div>
+        <div><?= htmlspecialchars_decode($job['description']) ?></div>
 
         <hr>
         <h3>Comments</h3>

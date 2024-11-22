@@ -3,7 +3,7 @@ include '../includes/db.php';        // Database connection
 include '../includes/auth_functions.php'; // Authentication utilities
 
 // Restrict access to logged-in users with admin privileges
-if (!isLoggedIn() || !isAdmin()) {
+if (!isLoggedIn()) {
     header('Location: ../auth/login.php');
     exit();
 }

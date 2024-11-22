@@ -1,5 +1,5 @@
 /* General Styles */
-body {
+.main {
     font-family: 'Roboto', sans-serif;
     background: linear-gradient(to bottom right, #4a90e2, #9013fe);
     margin: 0;
